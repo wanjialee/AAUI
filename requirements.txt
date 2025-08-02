@@ -1,0 +1,9 @@
+streamlit>=1.35
+google-cloud-bigquery
+google-cloud-aiplatform
+pandas
+numpy
+scikit-learn
+xgboost
+matplotlib
+pyngrok
