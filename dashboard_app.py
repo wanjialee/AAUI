@@ -1,6 +1,6 @@
 import streamlit as st
 
-# import all pages
+# Import all pages
 import fraud_claim
 import high_risk_customer
 import customer_churn
