@@ -28,9 +28,9 @@ def show_high_risk_customer_page():
 
     df_customer, df, df_underwriting, df_policy, df_claim = load_data()
 
-    # === Step 3: Merge tables carefully ===
-    master_df = pd.merge(df, df_customer, on='Customer_ID', how='left', suffixes=('', '_customer'))
-    master_df = pd.merge(master_df, df_policy, on='Customer_ID', how='left', suffixes=('', '_policy'))
+    # === Step 3: Merge tables ===
+    master_df = pd.merge(df, df_customer, on='Customer_ID', how='left')
+    master_df = pd.merge(master_df, df_policy, on='Customer_ID', how='left')
 
     overlap_cols = set(master_df.columns) & set(df_underwriting.columns)
     overlap_cols.discard('Customer_ID')
@@ -42,28 +42,25 @@ def show_high_risk_customer_page():
     master_df = master_df.drop(columns=overlap_cols)
     master_df = pd.merge(master_df, df_claim, on='Customer_ID', how='left')
 
-    # === Step 5: Create target column ===
+    # === Step 4: Create target ===
     master_df['Risk_Category'] = pd.qcut(master_df['Total_Risk_Score'], q=3, labels=['Low Risk', 'Moderate Risk', 'High Risk'])
     target_col = 'Risk_Category'
 
-    # === Step 6: Identify columns to drop ===
+    # === Step 5: Drop columns ===
     drop_cols = [
         target_col, 'Churn_Flag', 'Cancellation_Reason', 'Is_Fraud_Flag', 'Claim_Status', 'Approved_Amount',
-        'Claim_Frequency_Customer', 'Vehicle_Damage_Type', 'Case_Type', 'Claim_Type', 'Repair_Cost_Estimate','Claim_Amount',
-        'Time_to_Report', 'Claims_History_Flag','Load_Date_customer', 'Load_Date_policy', 'Load_Date', 'Total_Risk_Score'
+        'Claim_Frequency_Customer', 'Vehicle_Damage_Type', 'Case_Type', 'Claim_Type', 'Repair_Cost_Estimate', 'Claim_Amount',
+        'Time_to_Report', 'Claims_History_Flag', 'Load_Date_customer', 'Load_Date_policy', 'Load_Date', 'Total_Risk_Score'
     ]
     id_cols = [col for col in master_df.columns if 'id' in col.lower()]
-    datetime_cols_left = master_df.select_dtypes(include=['datetime64[ns]', 'datetime64[ns, UTC]']).columns.tolist()
-    dbdate_cols = [col for col in master_df.columns if str(master_df[col].dtype).lower() in ['dbdate', 'db_datetime']]
-    all_drop_cols = list(set(drop_cols + id_cols + datetime_cols_left + dbdate_cols))
+    datetime_cols = master_df.select_dtypes(include=['datetime64[ns]', 'datetime64[ns, UTC]']).columns.tolist()
+    all_drop_cols = list(set(drop_cols + id_cols + datetime_cols))
     all_drop_cols_exist = [col for col in all_drop_cols if col in master_df.columns]
 
-    # === Step 7: Define X and y ===
-    X_raw = master_df.drop(columns=all_drop_cols_exist, errors='ignore')
+    # === Step 6: Features & encode ===
+    X = master_df.drop(columns=all_drop_cols_exist, errors='ignore')
     y = master_df[target_col]
-    X = X_raw
 
-    # === Step 8: Encode categorical features ===
     cat_cols = X.select_dtypes(include='object').columns
     le_dict = {}
     for col in cat_cols:
@@ -71,64 +68,34 @@ def show_high_risk_customer_page():
         X[col] = le.fit_transform(X[col].astype(str))
         le_dict[col] = le
 
-    # === Step 9: Train/test split ===
+    # === Step 7: Train model ===
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-
-    # === Step 10: Train model ===
     model = RandomForestClassifier(random_state=42)
     model.fit(X_train, y_train)
 
-    # === Step 11: Evaluate ===
-    y_pred = model.predict(X_test)
-    accuracy = accuracy_score(y_test, y_pred)
-    report = classification_report(y_test, y_pred, output_dict=True)
-
-    # === Step 12: Feature importance ===
-    importances = model.feature_importances_
+    # === Step 8: Evaluate ===
+    accuracy = accuracy_score(y_test, model.predict(X_test))
     feature_importance_df = pd.DataFrame({
         'feature': X.columns,
-        'importance': importances
+        'importance': model.feature_importances_
     }).sort_values(by='importance', ascending=False)
     top_10_features = feature_importance_df.head(10)['feature'].tolist()
-    print("✅ Top 10 important features:", top_10_features)
 
-    # === Step 13: Streamlit UI ===
-    st.title("🚗 High Risk Customer Prediction")
-    st.write(f"✅ Model accuracy on test data: **{accuracy:.2f}**")
-
-    st.subheader("Input customer data for prediction:")
+    # === Step 9: Streamlit UI ===
+    st.write(f"✅ Model accuracy: **{accuracy:.2f}**")
+    st.subheader("Input data for prediction:")
     user_input = {}
 
     for feat in top_10_features:
-        if feat == 'Annual_Mileage':
-            val = st.number_input(
-                f"{feat} (Enter annual mileage in km):",
-                min_value=0, max_value=50000,
-                step=1000, value=12000
-            )
-            user_input[feat] = val
+        if feat in le_dict:
+            options = list(le_dict[feat].classes_)
+            val = st.selectbox(f"{feat}:", options)
+            user_input[feat] = le_dict[feat].transform([val])[0]
         else:
-            unique_vals = master_df[feat].dropna().unique()
-            if pd.api.types.is_numeric_dtype(master_df[feat]):
-                if sorted(unique_vals.tolist()) == [0, 1]:
-                    option = st.selectbox(f"{feat}:", ["No", "Yes"])
-                    user_input[feat] = 0 if option.startswith("No") else 1
-                else:
-                    option = st.selectbox(f"{feat}:", sorted(unique_vals))
-                    user_input[feat] = option
-            elif feat in le_dict:
-                options = list(le_dict[feat].classes_)
-                val = st.selectbox(f"{feat}:", options)
-                user_input[feat] = le_dict[feat].transform([val])[0]
-            else:
-                val = st.number_input(f"{feat}:", step=1.0)
-                user_input[feat] = val
+            val = st.number_input(f"{feat}:", value=0.0)
+            user_input[feat] = val
 
     if st.button("Predict Risk Category"):
-        input_df = pd.DataFrame(columns=X.columns)
-        input_df.loc[0] = 0
-        for feat, val in user_input.items():
-            if feat in input_df.columns:
-                input_df.at[0, feat] = val
+        input_df = pd.DataFrame([user_input], columns=X.columns).fillna(0)
         pred = model.predict(input_df)[0]
-        st.subheader(f"🔮 Predicted Risk Category: **{pred}**")
+        st.success(f"🔮 Predicted Risk Category: **{pred}**")
