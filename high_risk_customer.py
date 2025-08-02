@@ -1,4 +1,3 @@
-%%writefile high_risk_customer.py
 from google.cloud import bigquery, aiplatform
 import pandas as pd
 from sklearn.model_selection import train_test_split
