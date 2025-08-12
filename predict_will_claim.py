@@ -7,8 +7,8 @@ from xgboost import XGBClassifier
 import xgboost as xgb
 import streamlit as st
 
-st.set_page_config(page_title="High Risk Customer", layout="wide")
-st.subheader("⚠️ High Risk Customer")
+st.set_page_config(page_title="Predict Customer Claim", layout="wide")
+st.subheader("🚗 Predict Customer Claim")
 
 # =====================
 # Data Loading
@@ -102,7 +102,7 @@ print("✅ Top 10 important features:", top_10_features)
 
 
 # === Streamlit UI ===
-st.title("🚗 Will Customer Claim (XGBoost)")
+st.title("🚗 Will Customer Claim ")
 st.write(f"✅ Accuracy: {accuracy:.4f}")
 
 user_input = {}
