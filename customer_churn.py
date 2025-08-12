@@ -7,6 +7,7 @@ import streamlit as st
 
 
 st.set_page_config(page_title="Customer Churn Prediction", page_icon="📉")
+st.subheader("📉 Customer Churn Prediction")
 
     # === Step 2: Load data from BigQuery ===
 @st.cache_data(show_spinner="Loading data...")
@@ -17,23 +18,23 @@ def load_data():
     df_customer = pd.read_excel('DM_Customer.xlsx')
     df_risk = pd.read_excel('DM_Risk.xlsx')
     return df_customer, df_risk, df_underwriting, df_policy, df_claim
-    
-def main():
-        st.subheader("📉 Customer Churn Prediction (Demo)")
+
 # === Load ===
 df_customer, df_risk, df_underwriting, df_policy, df_claim = load_data()
 
-    # === Step 3: Merge tables ===
-    master_df = pd.merge(df, df_customer, on='Customer_ID', how='left', suffixes=('', '_customer'))
-    master_df = pd.merge(master_df, df_policy, on='Customer_ID', how='left', suffixes=('', '_policy'))
-    overlap_cols = set(master_df.columns) & set(df_underwriting.columns)
-    overlap_cols.discard('Customer_ID')
-    master_df = master_df.drop(columns=overlap_cols)
-    master_df = pd.merge(master_df, df_underwriting, on='Customer_ID', how='left', suffixes=('', '_underwriting'))
-    overlap_cols = set(master_df.columns) & set(df_claim.columns)
-    overlap_cols.discard('Customer_ID')
-    master_df = master_df.drop(columns=overlap_cols)
-    master_df = pd.merge(master_df, df_claim, on='Customer_ID', how='left', suffixes=('', '_claim'))
+# === Merge ===
+master_df = pd.merge(df_risk, df_customer, on='Customer_ID', how='left')
+master_df = pd.merge(master_df, df_policy, on='Customer_ID', how='left')
+
+overlap_cols = set(master_df.columns) & set(df_underwriting.columns)
+overlap_cols.discard('Customer_ID')
+master_df.drop(columns=overlap_cols, inplace=True)
+master_df = pd.merge(master_df, df_underwriting, on='Customer_ID', how='left')
+
+overlap_cols = set(master_df.columns) & set(df_claim.columns)
+overlap_cols.discard('Customer_ID')
+master_df.drop(columns=overlap_cols, inplace=True)
+master_df = pd.merge(master_df, df_claim, on='Customer_ID', how='left')
 
     # === Step 6: Prepare target & drop cols ===
     target_col = 'Churn_Flag'
@@ -128,5 +129,3 @@ df_customer, df_risk, df_underwriting, df_policy, df_claim = load_data()
         else:
             st.success("✅ Prediction: Customer is likely to stay")
 
-if __name__ == "__main__":
-    main()
