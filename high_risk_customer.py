@@ -95,13 +95,21 @@ st.subheader("Input data for prediction:")
 
 user_input = {}
 for feat in top_10_features:
-    if feat in le_dict:
-        options = list(le_dict[feat].classes_)
-        val = st.selectbox(f"{feat}:", options)
-        user_input[feat] = le_dict[feat].transform([val])[0]
+    if feat == 'Annual_Mileage':
+        user_input[feat] = st.number_input(f"{feat} (km):", min_value=0, max_value=50000, step=1000, value=12000)
     else:
-        val = st.number_input(f"{feat}:", value=0.0)
-        user_input[feat] = val
+        if pd.api.types.is_numeric_dtype(master_df[feat]):
+            vals = sorted(master_df[feat].dropna().unique())
+            if vals == [0, 1]:
+                user_input[feat] = 1 if st.selectbox(f"{feat}:", ["No", "Yes"]) == "Yes" else 0
+            else:
+                user_input[feat] = st.selectbox(f"{feat}:", vals)
+        elif feat in le_dict:
+            options = list(le_dict[feat].classes_)
+            selected = st.selectbox(f"{feat}:", options)
+            user_input[feat] = le_dict[feat].transform([selected])[0]
+        else:
+            user_input[feat] = st.number_input(f"{feat}:", step=1.0)
 
 if st.button("Predict Risk Category"):
     input_df = pd.DataFrame([user_input], columns=X.columns).fillna(0)
