@@ -1,4 +1,3 @@
-from google.cloud import bigquery, aiplatform
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
@@ -6,26 +5,23 @@ from sklearn.metrics import accuracy_score, classification_report
 import xgboost as xgb
 import streamlit as st
 
-def show_customer_churn_page():
-    st.subheader("📉 Customer Churn Prediction")
 
-    # === Step 1: Setup ===
-    PROJECT_ID = 'aaui-464809'
-    REGION = 'asia-southeast1'
-    aiplatform.init(project=PROJECT_ID, location=REGION)
-    client = bigquery.Client(project=PROJECT_ID)
+st.set_page_config(page_title="Customer Churn Prediction", page_icon="📉")
 
     # === Step 2: Load data from BigQuery ===
-    @st.cache_data(show_spinner="Loading data...")
-    def load_data():
-        df_customer = client.query("SELECT * FROM `aaui-464809.Datamart.DMT_Customer`").to_dataframe()
-        df = client.query("SELECT * FROM `aaui-464809.Datamart.DMT_Risk`").to_dataframe()
-        df_underwriting = client.query("SELECT * FROM `aaui-464809.Datamart.DMT_Underwriting`").to_dataframe()
-        df_policy = client.query("SELECT * FROM `aaui-464809.Datamart.DMT_Policy`").to_dataframe()
-        df_claim = client.query("SELECT * FROM `aaui-464809.Datamart.DMT_Claim`").to_dataframe()
-        return df_customer, df, df_underwriting, df_policy, df_claim
-
-    df_customer, df, df_underwriting, df_policy, df_claim = load_data()
+@st.cache_data(show_spinner="Loading data...")
+def load_data():
+    df_policy = pd.read_excel('DM_Policy.xlsx')
+    df_underwriting = pd.read_excel('DM_Underwriting.xlsx')
+    df_claim = pd.read_excel('DM_Claim.xlsx')
+    df_customer = pd.read_excel('DM_Customer.xlsx')
+    df_risk = pd.read_excel('DM_Risk.xlsx')
+    return df_customer, df_risk, df_underwriting, df_policy, df_claim
+    
+def main():
+        st.subheader("📉 Customer Churn Prediction (Demo)")
+# === Load ===
+df_customer, df_risk, df_underwriting, df_policy, df_claim = load_data()
 
     # === Step 3: Merge tables ===
     master_df = pd.merge(df, df_customer, on='Customer_ID', how='left', suffixes=('', '_customer'))
@@ -131,3 +127,6 @@ def show_customer_churn_page():
             st.warning("⚠️ Prediction: Customer is likely to churn")
         else:
             st.success("✅ Prediction: Customer is likely to stay")
+
+if __name__ == "__main__":
+    main()
