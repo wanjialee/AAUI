@@ -8,31 +8,37 @@ from xgboost import XGBClassifier
 import xgboost as xgb
 import streamlit as st
 
-# === Step 1: Setup ===
-PROJECT_ID = 'aaui-464809'
-REGION = 'asia-southeast1'
-aiplatform.init(project=PROJECT_ID, location=REGION)
-client = bigquery.Client(project=PROJECT_ID)
+st.set_page_config(page_title="High Risk Customer", layout="wide")
+st.subheader("⚠️ High Risk Customer")
 
-# === Step 2: Load data from BigQuery ===
-df_customer = client.query("SELECT * FROM `aaui-464809.Datamart.DMT_Customer`").to_dataframe()
-df = client.query("SELECT * FROM `aaui-464809.Datamart.DMT_Risk`").to_dataframe()
-df_underwriting = client.query("SELECT * FROM `aaui-464809.Datamart.DMT_Underwriting`").to_dataframe()
-df_policy = client.query("SELECT * FROM `aaui-464809.Datamart.DMT_Policy`").to_dataframe()
-df_claim = client.query("SELECT * FROM `aaui-464809.Datamart.DMT_Claim`").to_dataframe()
+# =====================
+# Data Loading
+# =====================
+@st.cache_data(show_spinner="Loading data...")
+def load_data():
+    df_policy = pd.read_excel('DM_Policy.xlsx')
+    df_underwriting = pd.read_excel('DM_Underwriting.xlsx')
+    df_claim = pd.read_excel('DM_Claim.xlsx')
+    df_customer = pd.read_excel('DM_Customer.xlsx')
+    df_risk = pd.read_excel('DM_Risk.xlsx')
+    return df_customer, df_risk, df_underwriting, df_policy, df_claim
 
-# === Step 3: Merge tables carefully ===
-master_df = pd.merge(df, df_customer, on='Customer_ID', how='left', suffixes=('', '_customer'))
-master_df = pd.merge(master_df, df_policy, on='Customer_ID', how='left', suffixes=('', '_policy'))
+df_customer, df_risk, df_underwriting, df_policy, df_claim = load_data()
+
+# =====================
+# Data Merging
+# =====================
+master_df = pd.merge(df_risk, df_customer, on='Customer_ID', how='left')
+master_df = pd.merge(master_df, df_policy, on='Customer_ID', how='left')
 
 overlap_cols = set(master_df.columns) & set(df_underwriting.columns)
 overlap_cols.discard('Customer_ID')
-master_df = master_df.drop(columns=overlap_cols)
+master_df.drop(columns=overlap_cols, inplace=True)
 master_df = pd.merge(master_df, df_underwriting, on='Customer_ID', how='left')
 
 overlap_cols = set(master_df.columns) & set(df_claim.columns)
 overlap_cols.discard('Customer_ID')
-master_df = master_df.drop(columns=overlap_cols)
+master_df.drop(columns=overlap_cols, inplace=True)
 master_df = pd.merge(master_df, df_claim, on='Customer_ID', how='left')
 
 # Create target: Will_Claim
