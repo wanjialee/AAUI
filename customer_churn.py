@@ -85,7 +85,6 @@ feature_importance_df = pd.DataFrame({
     'importance': importances
 }).sort_values(by='importance', ascending=False)
 top_10_features = feature_importance_df.head(10)['feature'].tolist()
-st.write("Top 10 important features:", top_10_features)
 
 # === Step 13: Streamlit UI ===
 st.subheader("Input values for prediction (top 10 features):")
