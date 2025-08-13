@@ -101,4 +101,9 @@ if st.button("Predict Fraud"):
         if feat in input_df.columns:
             input_df.at[0, feat] = val
     pred = model_xgb.predict(input_df)[0]
-    st.error("⚠️ Claim is likely FRAUD") if pred == 1 else st.success("✅ Claim is likely legitimate")
+
+    if pred == 1:
+        st.error("⚠️ Claim is likely FRAUD")
+    else:
+        st.success("✅ Claim is likely legitimate")
+
